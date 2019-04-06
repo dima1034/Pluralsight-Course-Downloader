@@ -1,4 +1,5 @@
 var count = 0;
+var shouldBeSequential = true;
 
 Number.prototype.myPadding = function () {
   var number = this.valueOf();
@@ -9,6 +10,15 @@ Number.prototype.myPadding = function () {
   }
   return str;
 };
+
+function getVideoSrc(){
+  var link = $('#vjs_video_3_html5_api');
+  if(!link.length){
+    //try fix get src error(domId changed)
+    link = $('video');
+  }
+  return link.attr('src');
+}
 
 function pauseVideo() {
   if ($('#play-control').length === 1) {
@@ -32,7 +42,7 @@ function getSectionDom() {
 }
 
 function getSaveFilePath() {
-  var link = $('#vjs_video_3_html5_api').attr('src');
+  var link = getVideoSrc();
   var courseName = getCourseName();
   // console.log(courseName);
 
@@ -54,7 +64,7 @@ function getSaveFilePath() {
 }
 
 function downloadCurrentVideo() {
-  var link = $('#vjs_video_3_html5_api').attr('src');
+  var link = getVideoSrc();
   console.log('downloadCurrentVideo: ' + link);
 
   var saveFilePath = getSaveFilePath();
@@ -71,7 +81,7 @@ function downloadCurrentVideo() {
 }
 
 function downloadAllVideos() {
-  var link = $('#vjs_video_3_html5_api').attr('src');
+  var link = getVideoSrc();
   var saveFilePath = getSaveFilePath();
   console.log('chrome download => ' + saveFilePath);
 
@@ -84,7 +94,7 @@ function downloadAllVideos() {
   var finalFileName = $('section:last').find('li:last').find('h3').text();
 
   chrome.runtime.sendMessage({
-      action: 'download',
+      action: shouldBeSequential? 'download-sync': 'download',
       link: link,
       filename: saveFilePath
     },
@@ -94,8 +104,10 @@ function downloadAllVideos() {
         alert("Full Course Downloaded!");
       } else {
         $('#next-control').click();
-        setTimeout(pauseVideo, pauseVideoTimeout);
-        setTimeout(downloadAllVideos, downloadAllVideosTimeout);
+        // Use less timeout in sequential mode, since the
+        // response is  already async.
+        setTimeout(pauseVideo, shouldBeSequential? pauseVideoTimeout / 2 : pauseVideoTimeout);
+        setTimeout(downloadAllVideos, shouldBeSequential? downloadAllVideosTimeout / 3 :  downloadAllVideosTimeout);
       }
     }
   );
@@ -110,6 +122,8 @@ $(function () {
     } else if (e.which === 97 || e.which === 65) {
       // keypress `a`
       count = 0;
+      // shouldBeSequential = confirm('Do you want your downloads to be sequential?');
+
       console.log('a => all');
       downloadAllVideos();
     }
